@@ -1,0 +1,60 @@
+name: Open Brain keep-alive
+
+# Pings the Open Brain Supabase project every day so the free-tier project
+# is never considered "inactive" and never auto-pauses (pause happens after
+# ~7 days of inactivity). The ping calls the `thought_stats` MCP tool, which
+# forces a real database query — so this counts as genuine project activity.
+#
+# The job also writes a heartbeat timestamp and commits it. That keeps the
+# *repository* active too, which prevents GitHub from auto-disabling this
+# scheduled workflow after 60 days of repo inactivity.
+
+on:
+  schedule:
+    - cron: "23 7 * * *" # every day at 07:23 UTC (off the congested top-of-hour)
+  workflow_dispatch: {} # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write # needed to push the heartbeat commit
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ping Open Brain (forces a DB query)
+        env:
+          OB_URL: ${{ secrets.OB_MCP_URL }}
+          OB_KEY: ${{ secrets.OB_BRAIN_KEY }}
+        run: |
+          set -euo pipefail
+          code=$(curl -s -o resp.txt -w '%{http_code}' -m 40 -X POST "$OB_URL" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -H "x-brain-key: $OB_KEY" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"thought_stats","arguments":{}}}')
+          echo "HTTP $code"
+          # A valid response contains "Total thoughts"; fail loudly otherwise so
+          # GitHub emails you (early warning if the brain is down or the key rotated).
+          if [ "$code" != "200" ] || ! grep -q "Total thoughts" resp.txt; then
+            echo "::error::Keep-alive ping failed (HTTP $code)"
+            head -c 2000 resp.txt || true
+            exit 1
+          fi
+          echo "Open Brain responded OK."
+
+      - name: Write + commit heartbeat
+        run: |
+          set -euo pipefail
+          ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "Last successful keep-alive ping: $ts" > last-ping.txt
+          git config user.name "keepalive-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add last-ping.txt
+          git commit -m "keep-alive ping $ts" || { echo "nothing to commit"; exit 0; }
+          git push

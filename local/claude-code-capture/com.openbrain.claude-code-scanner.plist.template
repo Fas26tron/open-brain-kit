@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openbrain.claude-code-scanner</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>__HOME__/.open-brain/claude-code-capture/scan-sessions.mjs</string>
+    <string>--apply</string>
+  </array>
+
+  <!-- Toutes les 2h. Une session devient "finie" après 120 min d'inactivité,
+       donc chaque session terminée est capturée sous ~2-4h. Rejoue au réveil. -->
+  <key>StartInterval</key>
+  <integer>7200</integer>
+
+  <!-- Rejoue aussi peu après le login : la capture s'auto-répare après reboot. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/.open-brain/claude-code-capture/logs/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.open-brain/claude-code-capture/logs/launchd.err.log</string>
+</dict>
+</plist>
