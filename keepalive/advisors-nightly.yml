@@ -1,0 +1,43 @@
+name: Open Brain advisors — nightly distillation
+
+# Every night, asks the open-brain-advisors function to distill the thoughts
+# captured since the last run into the sparring partner's profile and the chief
+# of staff's project state. Each call does one bounded step (30 thoughts, or
+# the final merge); the job loops while the function reports that more
+# remains, up to 12 calls. A big backlog just takes a few nights.
+#
+# Secrets (same repository as the keep-alive workflow):
+#   OB_MCP_URL    https://PROJECT_REF.supabase.co/functions/v1/open-brain-mcp
+#   OB_BRAIN_KEY  your MCP_ACCESS_KEY
+# The advisors URL is derived from OB_MCP_URL, so no new secret is needed.
+
+on:
+  schedule:
+    - cron: "41 2 * * *" # 02:41 UTC every night (off the top of the hour)
+  workflow_dispatch: {}
+
+concurrency:
+  group: advisors-nightly
+  cancel-in-progress: false
+
+jobs:
+  distill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Distill until nothing remains
+        env:
+          OB_URL: ${{ secrets.OB_MCP_URL }}
+          OB_KEY: ${{ secrets.OB_BRAIN_KEY }}
+        run: |
+          set -euo pipefail
+          url="${OB_URL%/open-brain-mcp}/open-brain-advisors/jobs/nightly"
+          for i in $(seq 1 12); do
+            code=$(curl -s -o resp.json -w '%{http_code}' -m 300 -X POST "$url" \
+              -H "Content-Type: application/json" -H "x-brain-key: $OB_KEY" -d '{}')
+            echo "call $i: HTTP $code"
+            cat resp.json; echo
+            if [ "$code" != "200" ]; then echo "::error::nightly call failed (HTTP $code)"; exit 1; fi
+            if ! grep -q '"remaining":true' resp.json; then break; fi
+          done
+          if grep -q 'ERREUR' resp.json; then echo "::error::distillation reported an error"; exit 1; fi
+          echo "Done."

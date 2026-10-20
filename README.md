@@ -23,12 +23,12 @@ Prérequis que vous fournissez : un compte [Supabase](https://supabase.com) (gra
 
 | Dossier | Rôle |
 |---|---|
-| `supabase/` | migrations (schéma complet, idempotent) et les trois Edge Functions : `open-brain-mcp` (cœur MCP), `open-brain-rest` (API REST pour l'extension et les imports), `ob-graph-mcp` (graphe) |
+| `supabase/` | migrations (schéma complet, idempotent) et quatre Edge Functions : `open-brain-mcp` (cœur MCP), `open-brain-rest` (API REST pour l'extension et les imports), `ob-graph-mcp` (graphe), `open-brain-advisors` (chief of staff, sparring partner, panel de personae, voir [docs/advisors.md](docs/advisors.md)) |
 | `chrome-capture-extension/` | extension Chrome : capture à la demande et synchronisation complète des comptes ChatGPT et Claude |
 | `local/claude-code-capture/` | scanner des sessions Claude Code (launchd, toutes les 2 h) |
 | `local/import/` | import d'un export Claude.ai avec conservation des dates |
-| `chief-of-staff/` | un rôle Claude Code qui suit vos projets à partir du brain : états des lieux, décisions en attente, chantiers délaissés. Fonctionne avec ou sans dépôts git |
-| `keepalive/` | GitHub Action anti-pause pour le free tier Supabase |
+| `chief-of-staff/` | la version locale du chief of staff pour Claude Code : lit en plus vos dépôts git et vos sessions, versionne tout dans un repo |
+| `keepalive/` | GitHub Actions : anti-pause du free tier Supabase, et distillation nocturne des conseillers |
 | `bootstrap.sh` | installe la partie locale (scanner, scripts, config) sur un Mac |
 | `docs/` | [install.md](docs/install.md), [connect-clients.md](docs/connect-clients.md) |
 | `upstream/` | copies intactes des fichiers d'origine OB1, base de fusion pour les mises à jour |

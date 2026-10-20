@@ -32,3 +32,8 @@ import_map = "./functions/open-brain-rest/deno.json"
 enabled = true
 verify_jwt = false
 import_map = "./functions/ob-graph-mcp/deno.json"
+
+[functions.open-brain-advisors]
+enabled = true
+verify_jwt = false
+import_map = "./functions/open-brain-advisors/deno.json"

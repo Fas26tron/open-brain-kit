@@ -52,6 +52,16 @@ claude mcp add --transport http --scope user ob-graph \
 
 **Terminé quand** : `claude mcp list` affiche les deux serveurs connectés, et dans une session « que sait mon Open Brain de ce projet ? » répond.
 
+## Les conseillers (chief of staff, sparring partner, panel)
+
+Un troisième connecteur, si vous avez déployé `open-brain-advisors` ([advisors.md](advisors.md)). Même geste que les deux autres, nom `Conseillers`, URL :
+
+```
+https://PROJECT_REF.supabase.co/functions/v1/open-brain-advisors?key=BRAIN_KEY
+```
+
+Claude Code : `claude mcp add --transport http --scope user advisors "https://PROJECT_REF.supabase.co/functions/v1/open-brain-advisors?key=BRAIN_KEY"`.
+
 ## Codex, Cursor, VS Code, Windsurf
 
 Ces clients acceptent soit l'URL de connexion MCP directement, soit un pont local (`supergateway` ou `mcp-remote`). Les configurations prêtes à copier sont dans `upstream/docs/01-getting-started.md`, sections 7.4 et 7.5.

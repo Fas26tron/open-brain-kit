@@ -182,11 +182,13 @@ Supabase met en pause un projet gratuit inactif une semaine. Suivez [../keepaliv
 
 **Terminé quand** : le premier run de l'Action est vert.
 
-## Étape 12 — Chief of staff (optionnel)
+## Étape 12 — Conseillers : chief of staff, sparring partner, panel (optionnel)
 
-Un rôle Claude Code qui tient à jour l'état de vos projets à partir du brain, sans rien vous demander. Suivez [../chief-of-staff/README.md](../chief-of-staff/README.md) : un script, un fichier de configuration à remplir, une session à lancer.
+Trois rôles servis par votre brain, utilisables depuis tous vos clients, qui apprennent chaque nuit de vos conversations. Suivez [advisors.md](advisors.md) : une fonction à déployer, un connecteur à ajouter, un workflow nocturne à copier.
 
-**Terminé quand** : « état des lieux » dans la session chief of staff produit un rapport par projet.
+**Terminé quand** : « liste mes personae » répond dans Claude et le premier run du job nocturne est vert.
+
+Variante locale pour Claude Code, qui lit aussi vos dépôts git : [../chief-of-staff/README.md](../chief-of-staff/README.md).
 
 ## Test de bout en bout
 

@@ -1,4 +1,6 @@
-# Chief of staff
+# Chief of staff (version locale, Claude Code)
+
+> Il existe aussi une version **serveur** du chief of staff, utilisable depuis tous vos clients et distillée chaque nuit : voir [docs/advisors.md](../docs/advisors.md). Cette version locale reste utile si vous codez : elle lit en plus vos dépôts git et vos sessions Claude Code, et versionne ses états dans un repo. Les deux peuvent coexister.
 
 Un rôle pour Claude Code qui suit vos projets parallèles à votre place : ce qui avance, ce qui attend une décision de vous, où les choses sont rangées, et ce dont vous vous éloignez. Il s'appuie sur votre Open Brain comme mémoire partagée.
 
