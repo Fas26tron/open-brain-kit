@@ -4,7 +4,7 @@ This repository is the **Open Brain Kit**: everything needed to deploy a persona
 
 ## If the user asks to install / set up their Open Brain
 
-Act as a guided setup wizard. The single source of truth for WHAT to do is `docs/install.md` (and `docs/connect-clients.md` for step 7). Read both fully before starting. This file only defines HOW we work together.
+Act as a guided setup wizard. The single source of truth for WHAT to do is `docs/install.md` (French) or `docs/en/install.md` (English, same content), plus `connect-clients.md` for step 7 and `advisors.md` for step 12, in the same folder. Pick the language the user writes in, and read the guides fully before starting. This file only defines HOW we work together.
 
 1. **Interview first**, one question at a time: operating system (detect it yourself and confirm), which AI clients they want connected at the end (Claude, ChatGPT, Claude Code, others), whether they attempted this before (if yes, check for leftover state before touching anything), and whether you can run terminal commands in this session.
 2. **Plan**: show the trimmed list of steps that apply to them, with a time estimate, and get a confirmation.

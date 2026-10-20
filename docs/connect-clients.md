@@ -6,8 +6,9 @@ Valeurs à préparer :
 
 - **URL de connexion MCP** : `https://PROJECT_REF.supabase.co/functions/v1/open-brain-mcp?key=BRAIN_KEY`
 - **URL du graphe** : `https://PROJECT_REF.supabase.co/functions/v1/ob-graph-mcp?key=BRAIN_KEY`
+- **URL des conseillers** : `https://PROJECT_REF.supabase.co/functions/v1/open-brain-advisors?key=BRAIN_KEY`
 
-La clé est dans l'URL : ne collez ces URLs que dans les réglages de vos propres clients.
+La clé est dans l'URL : ne collez ces URLs que dans les réglages de vos propres clients. Quand un client propose des **en-têtes de requête**, préférez l'URL sans `?key=` et un en-tête `x-brain-key` avec la clé : elle est stockée chiffrée et plus jamais affichée. Toutes les fonctions acceptent les deux formes.
 
 ## Claude (web, desktop, mobile)
 
@@ -16,20 +17,22 @@ Les connecteurs sont attachés à votre compte Claude. Ajoutez-le une fois, il a
 1. [claude.ai](https://claude.ai) → **Settings → Connectors** (ou Claude Desktop → Settings → Connectors).
 2. **Add custom connector**. Nom : `Open Brain`. URL : votre URL de connexion MCP. **Add**.
 3. Dans une nouvelle conversation, le bouton **+** → Connectors permet d'activer ou non Open Brain.
+4. **Autorisations des outils** (ouvrez le connecteur depuis la liste) : passez les outils de lecture sur « toujours autoriser » et gardez « demander » pour ceux qui écrivent, sinon Claude demande confirmation à chaque appel.
 
-Faites de même avec le nom `OB-Graph` et l'URL du graphe si vous voulez les outils de graphe (nœuds, relations, parcours).
+Faites de même avec le nom `OB-Graph` et l'URL du graphe si vous voulez les outils de graphe (nœuds, relations, parcours), et avec le nom `Conseillers` et l'URL des conseillers (voir [advisors.md](advisors.md)).
 
 **Terminé quand** : « combien de thoughts contient mon Open Brain ? » déclenche `thought_stats`.
 
 ## ChatGPT
 
-Plan payant requis. Les connecteurs personnalisés se créent sur le web, à [chatgpt.com](https://chatgpt.com), et passent par le **Developer mode**, qui désactive la mémoire intégrée de ChatGPT. Open Brain la remplace, sur tous vos clients à la fois.
+Plan payant requis (Plus, Pro, Business…). Depuis l'été 2026, les connecteurs MCP s'appellent **plugins** dans ChatGPT et il n'y a plus de mode développeur à activer. Un plugin se crée une fois, sur le web, puis s'installe sur le compte : il est ensuite disponible dans l'app Mac (vérifié en octobre 2026) et, selon les versions, sur mobile.
 
-1. Profil → **Settings → Apps & Connectors → Advanced settings** → **Developer mode** ON.
-2. **Settings → Apps & Connectors → Create**. Nom : `Open Brain`. Description libre. MCP endpoint URL : votre URL de connexion MCP. Authentication : **No Authentication** (la clé est dans l'URL). **Create**.
-3. Dans une conversation, sélectionnez l'app Open Brain. Si ChatGPT n'utilise pas l'outil spontanément, demandez-le : « utilise l'outil search de Open Brain pour retrouver mes notes sur… ».
+1. [chatgpt.com](https://chatgpt.com) → avatar → **Settings → Plugins** → **Browse directory** → bouton **+** ou **Add custom MCP server**.
+2. Name : `Open Brain Memory` (si « Open Brain » est annoncé comme déjà existant, changez le nom, il n'a aucune importance). Description : `Ma mémoire personnelle : recherche et capture`. Server URL : votre URL de connexion MCP, clé comprise. Authentication : **No authentication**. Cochez « I understand and want to continue », puis **Create as a plugin**.
+3. Retour dans **Plugins**, onglet **Personnel**, section « Créés par vous » : cliquez sur le **+** du plugin pour l'**installer**. Il apparaît alors sous « Installés ». Un plugin créé mais non installé ne fait rien.
+4. Dans une conversation, bouton **+** du champ de saisie : activez le plugin si ChatGPT ne le propose pas de lui-même. Si l'outil n'est pas appelé spontanément, nommez-le : « utilise l'outil search d'Open Brain Memory pour… ».
 
-Cette partie de ChatGPT évolue vite et dépend du plan et du modèle. Si un outil est annoncé indisponible et que les logs Supabase de `open-brain-mcp` ne montrent aucune requête, recréez le connecteur et ouvrez une nouvelle conversation. Les détails à jour sont dans `upstream/docs/01-getting-started.md`, section 7.2.
+Cette partie de ChatGPT change souvent. Si un outil est annoncé indisponible et que les logs Supabase de `open-brain-mcp` ne montrent aucune requête, recréez le plugin et ouvrez une nouvelle conversation.
 
 **Terminé quand** : la même question qu'au-dessus déclenche `search` ou `thought_stats`.
 

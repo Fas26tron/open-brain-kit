@@ -1,5 +1,7 @@
 # Open Brain Kit
 
+*English: [README.en.md](README.en.md) and [docs/en/](docs/en/).*
+
 Une mémoire IA personnelle, prête à installer en une heure, qui :
 
 - **se construit à partir de vos historiques** ChatGPT et Claude (synchronisation de compte + import des exports officiels) ;

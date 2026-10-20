@@ -67,9 +67,9 @@ Avec un agent qui ne peut pas répondre à une invite, ajoutez `-p 'MOT_DE_PASSE
 supabase db push
 ```
 
-Quatre migrations s'appliquent : la table `thoughts` avec recherche vectorielle et déduplication, ses colonnes étendues (type, importance, sensibilité), les colonnes de statut, et les tables du graphe. Des lignes `NOTICE … already exists, skipping` sont normales : les migrations sont écrites pour être rejouables.
+Cinq migrations s'appliquent : la table `thoughts` avec recherche vectorielle et déduplication, ses colonnes étendues (type, importance, sensibilité), les colonnes de statut, les tables du graphe, et les tables des conseillers. Des lignes `NOTICE … already exists, skipping` sont normales : les migrations sont écrites pour être rejouables.
 
-**Terminé quand** : dans **Table Editor**, vous voyez `thoughts`, `graph_nodes`, `graph_edges`. Relancer `supabase db push` affiche « Remote database is up to date ».
+**Terminé quand** : dans **Table Editor**, vous voyez `thoughts`, `graph_nodes`, `graph_edges`, `advisor_personas`. Relancer `supabase db push` affiche « Remote database is up to date ».
 
 ## Étape 5 — Secrets
 
@@ -94,13 +94,13 @@ La clé `service_role` (Supabase → **Settings → API**) n'est pas un secret d
 
 **Terminé quand** : `supabase secrets list` montre `OPENROUTER_API_KEY`, `MCP_ACCESS_KEY`, `DEFAULT_USER_ID`.
 
-## Étape 6 — Déployer les trois fonctions
+## Étape 6 — Déployer les quatre fonctions
 
 ```bash
-supabase functions deploy open-brain-mcp open-brain-rest ob-graph-mcp --use-api
+supabase functions deploy open-brain-mcp open-brain-rest ob-graph-mcp open-brain-advisors --use-api
 ```
 
-`--use-api` évite d'avoir Docker. `supabase/config.toml` fixe `verify_jwt = false` pour les trois : c'est obligatoire, les fonctions s'authentifient avec votre brain key, pas avec un jeton Supabase.
+`--use-api` évite d'avoir Docker. `supabase/config.toml` fixe `verify_jwt = false` pour les quatre : c'est obligatoire, les fonctions s'authentifient avec votre brain key, pas avec un jeton Supabase.
 
 Vérifiez, en remplaçant les deux valeurs :
 
@@ -110,13 +110,14 @@ KEY=votre_brain_key
 
 curl -s "$URL/open-brain-rest/health" -H "x-brain-key: $KEY"
 curl -s "$URL/ob-graph-mcp/health"
+curl -s "$URL/open-brain-advisors/health"
 curl -s -X POST "$URL/open-brain-mcp" \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
   -H "x-brain-key: $KEY" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"thought_stats","arguments":{}}}'
 ```
 
-**Terminé quand** : les deux `health` répondent `ok` et la troisième commande contient « Total thoughts: 0 ». Une mauvaise clé donne un 401 sur `open-brain-rest` et `ob-graph-mcp`, et sur `open-brain-mcp` une réponse 200 contenant « Unauthorized: missing or invalid authentication » (c'est le format MCP). Dans les deux cas, comparez la clé avec celle de l'étape 5.
+**Terminé quand** : les trois `health` répondent `ok` et la dernière commande contient « Total thoughts: 0 ». Une mauvaise clé donne un 401 sur `open-brain-rest`, `ob-graph-mcp` et `open-brain-advisors`, et sur `open-brain-mcp` une réponse 200 contenant « Unauthorized: missing or invalid authentication » (c'est le format MCP). Dans les deux cas, comparez la clé avec celle de l'étape 5.
 
 Le solde OpenRouter n'est sollicité qu'à la première capture. Si une capture renvoie « OpenRouter embeddings failed: 401 User not found », la clé OpenRouter de l'étape 5 est fausse ou n'a pas été poussée avec `supabase secrets set`.
 
@@ -132,9 +133,10 @@ C'est elle qui capture ChatGPT et Claude.ai. Elle lit l'historique de votre **co
 
 1. `chrome://extensions` → **Mode développeur** (en haut à droite) → **Charger l'extension non empaquetée** → sélectionnez le dossier `chrome-capture-extension/` du kit.
 2. Cliquez sur l'icône de l'extension → ⚙️ **Settings** : *Open Brain REST API URL* = `https://PROJECT_REF.supabase.co/functions/v1`, *API Key* = votre brain key → **Test connection** → **Save**.
-3. Ouvrez [chatgpt.com](https://chatgpt.com) et [claude.ai](https://claude.ai) connecté, puis dans la popup : **Sync All**. La première synchronisation importe tout l'historique joignable, à raison de quelques secondes par conversation. Laissez l'onglet ouvert.
+3. Ouvrez [chatgpt.com](https://chatgpt.com) et [claude.ai](https://claude.ai) connecté, puis dans la popup : **Sync All** pour chacun. La première synchronisation importe tout l'historique joignable, à raison de quelques secondes par conversation. Laissez l'onglet ouvert.
+4. Cochez **Auto-sync every 15 min** pour Claude et pour ChatGPT. C'est ce qui rend la capture continue : dès lors, toute conversation nouvelle ou modifiée entre dans le brain sans aucune action, y compris celles des apps Mac et mobiles.
 
-Ce que la synchronisation atteint : côté ChatGPT, les conversations actives et archivées, mais pas celles rangées dans un **Project** (API inaccessible : sortez-les du projet, elles seront prises au passage suivant). Côté Claude, la liste par défaut ; pour l'historique complet, voir l'étape 10.
+Ce que la synchronisation atteint : côté ChatGPT, les conversations actives et archivées, y compris les sessions **Work** (l'échange final, pas les étapes intermédiaires), mais pas celles rangées dans un **Project** (API inaccessible : sortez-les du projet, elles seront prises au passage suivant). Côté Claude, la liste par défaut ; pour l'historique complet, voir l'étape 10.
 
 Après chaque mise à jour du kit, rechargez l'extension (bouton ↻ dans `chrome://extensions`).
 
@@ -184,7 +186,7 @@ Supabase met en pause un projet gratuit inactif une semaine. Suivez [../keepaliv
 
 ## Étape 12 — Conseillers : chief of staff, sparring partner, panel (optionnel)
 
-Trois rôles servis par votre brain, utilisables depuis tous vos clients, qui apprennent chaque nuit de vos conversations. Suivez [advisors.md](advisors.md) : une fonction à déployer, un connecteur à ajouter, un workflow nocturne à copier.
+Trois rôles servis par votre brain, utilisables depuis tous vos clients, qui apprennent chaque nuit de vos conversations. Suivez [advisors.md](advisors.md) : la fonction est déjà déployée par l'étape 6 ; il reste un connecteur à ajouter et un workflow nocturne à copier.
 
 **Terminé quand** : « liste mes personae » répond dans Claude et le premier run du job nocturne est vert.
 
@@ -202,7 +204,7 @@ Si les deux passent, votre Open Brain est complet.
 ```bash
 git pull upstream main
 supabase db push
-supabase functions deploy open-brain-mcp open-brain-rest ob-graph-mcp --use-api
+supabase functions deploy open-brain-mcp open-brain-rest ob-graph-mcp open-brain-advisors --use-api
 ./bootstrap.sh
 ```
 
@@ -215,6 +217,6 @@ Puis rechargez l'extension dans `chrome://extensions`.
 - **« Failed to create project … » en créant le projet par le CLI** : erreur côté Supabase, parfois liée à la région. Réessayez dans une autre région ou créez le projet depuis le dashboard.
 - **Le brain ne répond plus, DNS introuvable** : projet free tier en pause. Dashboard → **Restore**, puis mettez en place l'étape 11.
 - **Extension : « Could not get access token »** : vous n'êtes pas connecté à chatgpt.com dans ce profil Chrome, ou le site a changé son API interne. Voyez les logs du service worker (`chrome://extensions` → Inspecter les vues).
-- **ChatGPT dit que l'outil est indisponible** : Developer mode désactivé, ou le connecteur n'a pas atteint le serveur. Vérifiez Supabase → Edge Functions → `open-brain-mcp` → Logs. Détails dans `upstream/docs/03-faq.md`.
+- **ChatGPT dit que l'outil est indisponible** : le plugin a été créé mais pas installé (bouton **+** dans Plugins → Personnel), ou il n'a pas atteint le serveur. Vérifiez Supabase → Edge Functions → `open-brain-mcp` → Logs. Détails dans `upstream/docs/03-faq.md`.
 - **« OpenRouter embeddings failed: 401 … »** (`User not found` ou `Missing Authentication header`) : la valeur de `OPENROUTER_API_KEY` est fausse, ou un exemple a été collé tel quel. Reposez la vraie clé avec `supabase secrets set OPENROUTER_API_KEY=... --project-ref PROJECT_REF`. Les thoughts capturés pendant que la clé était fausse existent mais sans embedding, donc introuvables par la recherche : relancez la même capture ou le même import après correction, la déduplication retrouve la ligne et lui ajoute l'embedding.
 - **« permission denied for table thoughts »** : la migration de base n'a pas été appliquée entièrement. Relancez `supabase db push`.

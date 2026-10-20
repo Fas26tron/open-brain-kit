@@ -8,13 +8,9 @@ Trois rôles servis par votre brain lui-même, donc utilisables depuis **n'impor
 
 ## Installation
 
-Prérequis : le kit déployé (étapes 1 à 6 de [install.md](install.md)).
+Prérequis : le kit déployé (étapes 1 à 6 de [install.md](install.md) ; la fonction `open-brain-advisors` et ses tables en font partie).
 
-```bash
-supabase db push                                        # tables advisor_*
-supabase functions deploy open-brain-advisors --use-api
-curl -s https://PROJECT_REF.supabase.co/functions/v1/open-brain-advisors/health
-```
+Vérification : `curl -s https://PROJECT_REF.supabase.co/functions/v1/open-brain-advisors/health`.
 
 Réglages optionnels, par `supabase secrets set` : `ADVISORS_MODEL` (identifiant OpenRouter du modèle qui joue les rôles, par défaut `anthropic/claude-sonnet-5.5`), `ADVISORS_LANGUAGE` (défaut `fr`).
 
@@ -75,6 +71,6 @@ Entre deux nuits, les deux rôles voient quand même tout ce qui est capturé, p
 - Chaque question au panel = un appel de modèle par persona, plus un pour la synthèse. Chaque nuit = un appel par tranche de 30 thoughts nouveaux, plus une fusion du profil ; le workflow enchaîne jusqu'à 12 appels. Avec le modèle par défaut, quelques centimes par question, quelques dizaines de centimes par nuit active.
 - La qualité des rôles est celle du modèle serveur. Un modèle bas de gamme donne des caricatures.
 - « Comme un psychothérapeute » : le sparring partner reflète les schémas visibles dans vos conversations, avec précision si le profil est bien distillé. C'est un miroir informé, pas un clinicien.
-- Côté ChatGPT, les réserves habituelles du connecteur (mode développeur, plan payant, outil parfois à nommer).
+- Côté ChatGPT, le plugin se crée puis s'**installe** (deux gestes, voir [connect-clients.md](connect-clients.md)) ; plan payant ; outil parfois à nommer.
 
 Le pack `chief-of-staff/` du kit reste la version locale pour Claude Code : il lit en plus vos dépôts git et vos sessions, et versionne tout dans un repo. Les deux peuvent coexister sur le même brain.
