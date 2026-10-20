@@ -38,7 +38,7 @@ Les deux URLs que vous utiliserez partout, une fois le project ref connu :
 
 1. [supabase.com/dashboard](https://supabase.com/dashboard) → **New project**. Nom : `open-brain`. Région : la plus proche de vous. Générez un mot de passe fort et notez-le.
 2. Attendez une à deux minutes. Le **project ref** est la partie aléatoire de l'URL : `supabase.com/dashboard/project/CETTE_PARTIE`.
-3. Dans **Database → Extensions**, cherchez `vector` et activez-le. La migration le fait aussi, mais l'activer ici évite un échec de permissions sur certains projets.
+3. Rien d'autre à cliquer : l'extension `vector` est activée par la première migration (vérifié sur un projet neuf).
 
 **Terminé quand** : project ref et mot de passe sont notés, le projet affiche « Active ».
 
@@ -57,6 +57,8 @@ supabase login                       # ouvre le navigateur
 supabase link --project-ref PROJECT_REF   # demande le mot de passe de la base
 ```
 
+Avec un agent qui ne peut pas répondre à une invite, ajoutez `-p 'MOT_DE_PASSE'` à la commande `link`.
+
 **Terminé quand** : `supabase projects list` affiche un ● devant votre projet.
 
 ## Étape 4 — Base de données
@@ -65,7 +67,7 @@ supabase link --project-ref PROJECT_REF   # demande le mot de passe de la base
 supabase db push
 ```
 
-Quatre migrations s'appliquent : la table `thoughts` avec recherche vectorielle et déduplication, ses colonnes étendues (type, importance, sensibilité), les colonnes de statut, et les tables du graphe.
+Quatre migrations s'appliquent : la table `thoughts` avec recherche vectorielle et déduplication, ses colonnes étendues (type, importance, sensibilité), les colonnes de statut, et les tables du graphe. Des lignes `NOTICE … already exists, skipping` sont normales : les migrations sont écrites pour être rejouables.
 
 **Terminé quand** : dans **Table Editor**, vous voyez `thoughts`, `graph_nodes`, `graph_edges`. Relancer `supabase db push` affiche « Remote database is up to date ».
 
@@ -114,7 +116,9 @@ curl -s -X POST "$URL/open-brain-mcp" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"thought_stats","arguments":{}}}'
 ```
 
-**Terminé quand** : les deux `health` répondent `ok` et la troisième commande contient « Total thoughts: 0 ». Un 401 signifie une clé différente de celle de l'étape 5, ou un `verify_jwt` resté à `true`.
+**Terminé quand** : les deux `health` répondent `ok` et la troisième commande contient « Total thoughts: 0 ». Une mauvaise clé donne un 401 sur `open-brain-rest` et `ob-graph-mcp`, et sur `open-brain-mcp` une réponse 200 contenant « Unauthorized: missing or invalid authentication » (c'est le format MCP). Dans les deux cas, comparez la clé avec celle de l'étape 5.
+
+Le solde OpenRouter n'est sollicité qu'à la première capture. Si une capture renvoie « OpenRouter embeddings failed: 401 User not found », la clé OpenRouter de l'étape 5 est fausse ou n'a pas été poussée avec `supabase secrets set`.
 
 ## Étape 7 — Connecter vos clients IA
 
@@ -198,7 +202,9 @@ Puis rechargez l'extension dans `chrome://extensions`.
 
 ## Dépannage
 
-- **401 partout** : la clé saisie côté client diffère de `MCP_ACCESS_KEY`, ou une fonction a été déployée avec `verify_jwt = true`. Redéployez depuis le kit.
+- **401 partout, ou « Unauthorized » dans les réponses MCP** : la clé saisie côté client diffère de `MCP_ACCESS_KEY`, ou une fonction a été déployée avec `verify_jwt = true`. Redéployez depuis le kit.
+- **Le CLI affiche « A new version of Supabase CLI is available »** : simple rappel, sans effet sur l'installation. `brew upgrade supabase` quand vous voulez.
+- **« Failed to create project … » en créant le projet par le CLI** : erreur côté Supabase, parfois liée à la région. Réessayez dans une autre région ou créez le projet depuis le dashboard.
 - **Le brain ne répond plus, DNS introuvable** : projet free tier en pause. Dashboard → **Restore**, puis mettez en place l'étape 11.
 - **Extension : « Could not get access token »** : vous n'êtes pas connecté à chatgpt.com dans ce profil Chrome, ou le site a changé son API interne. Voyez les logs du service worker (`chrome://extensions` → Inspecter les vues).
 - **ChatGPT dit que l'outil est indisponible** : Developer mode désactivé, ou le connecteur n'a pas atteint le serveur. Vérifiez Supabase → Edge Functions → `open-brain-mcp` → Logs. Détails dans `upstream/docs/03-faq.md`.
