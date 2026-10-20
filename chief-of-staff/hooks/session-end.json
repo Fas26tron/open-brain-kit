@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p ~/.claude/chief-of-staff && jq -c '{ts: (now|todate), cwd: (.cwd // \"\"), project: ((.cwd // \"\") | split(\"/\") | last), session_id: (.session_id // \"\"), transcript: (.transcript_path // \"\"), reason: (.reason // \"\")}' >> ~/.claude/chief-of-staff/pending-sync.jsonl",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

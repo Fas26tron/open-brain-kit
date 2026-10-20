@@ -27,6 +27,7 @@ Prérequis que vous fournissez : un compte [Supabase](https://supabase.com) (gra
 | `chrome-capture-extension/` | extension Chrome : capture à la demande et synchronisation complète des comptes ChatGPT et Claude |
 | `local/claude-code-capture/` | scanner des sessions Claude Code (launchd, toutes les 2 h) |
 | `local/import/` | import d'un export Claude.ai avec conservation des dates |
+| `chief-of-staff/` | un rôle Claude Code qui suit vos projets à partir du brain : états des lieux, décisions en attente, chantiers délaissés. Fonctionne avec ou sans dépôts git |
 | `keepalive/` | GitHub Action anti-pause pour le free tier Supabase |
 | `bootstrap.sh` | installe la partie locale (scanner, scripts, config) sur un Mac |
 | `docs/` | [install.md](docs/install.md), [connect-clients.md](docs/connect-clients.md) |

@@ -182,6 +182,12 @@ Supabase met en pause un projet gratuit inactif une semaine. Suivez [../keepaliv
 
 **Terminé quand** : le premier run de l'Action est vert.
 
+## Étape 12 — Chief of staff (optionnel)
+
+Un rôle Claude Code qui tient à jour l'état de vos projets à partir du brain, sans rien vous demander. Suivez [../chief-of-staff/README.md](../chief-of-staff/README.md) : un script, un fichier de configuration à remplir, une session à lancer.
+
+**Terminé quand** : « état des lieux » dans la session chief of staff produit un rapport par projet.
+
 ## Test de bout en bout
 
 1. Dans Claude Desktop : « retiens que je préfère les réunions le matin ». L'outil `capture_thought` doit s'exécuter.
