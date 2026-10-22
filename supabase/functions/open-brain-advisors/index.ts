@@ -46,7 +46,7 @@ const DEFAULT_LANGUAGE = Deno.env.get("ADVISORS_LANGUAGE") || "fr";
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 const VERSION = "1.1.0";
 const CHUNK = 30;           // thoughts per nightly extraction step
-const CLASSIFY_BATCH = 80;  // thoughts per classification step
+const CLASSIFY_BATCH = 40;  // thoughts per classification step
 
 const supabase: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -221,7 +221,9 @@ function slugify(s: string) {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-/** Classify up to `limit` thoughts into domains. `reclassify` re-does already tagged ones (oldest first). */
+/** Classify up to `limit` thoughts into domains. `reclassify` re-does already tagged ones (newest first).
+ *  The model answers with the thoughts' INDEX (1..n), never their UUID, to keep the output short and
+ *  cheap; a truncated or unparsable answer tags nothing (never silently defaults). */
 async function classifyBatch(limit = CLASSIFY_BATCH, reclassify = false): Promise<{ done: number; remaining: boolean; counts: Record<string, number> }> {
   const domains = await listDomains();
   const def = domains.find((d) => d.is_default) || domains[0];
@@ -234,16 +236,21 @@ async function classifyBatch(limit = CLASSIFY_BATCH, reclassify = false): Promis
   const counts: Record<string, number> = {};
   if (!rows.length) return { done: 0, remaining: false, counts };
   const working = domains.filter((d) => !d.is_default);
+  const valid = new Set(domains.map((d) => d.slug));
   let assignments: Record<string, string[]> = {};
   if (working.length) {
-    const sys = `Tu classes des notes et conversations d'une personne dans ses DOMAINES. Domaines possibles :\n${working.map((d) => `- "${d.slug}" : ${d.name}. ${d.description}${d.keywords?.length ? ` Mots-clés : ${d.keywords.join(", ")}.` : ""}`).join("\n")}\n- "${def.slug}" : ${def.name} (par défaut) — tout ce qui ne relève clairement d'aucun domaine ci-dessus.\nRègles : une note peut appartenir à plusieurs domaines si elle mêle vraiment plusieurs sujets ; en cas de doute, le domaine par défaut ; ne mets jamais un domaine de travail sur une note purement personnelle. Renvoie un JSON strict : {"<id>": ["slug", ...], ...} avec exactement un item par note.`;
-    const user = rows.map((r) => `### ${r.id}\n[${(r.created_at || "").slice(0, 10)}] (${r.source_type || "?"}) ${r.content.replace(/\s+/g, " ").slice(0, 400)}`).join("\n\n");
-    const out = await chat(CLASSIFIER_MODEL, sys, user, true, 3000);
-    assignments = parseJson(out) || {};
+    const sys = `Tu classes des notes et conversations d'une personne dans ses DOMAINES. Domaines possibles :\n${working.map((d) => `- "${d.slug}" : ${d.name}. ${d.description}${d.keywords?.length ? ` Mots-clés : ${d.keywords.join(", ")}.` : ""}`).join("\n")}\n- "${def.slug}" : ${def.name} (par défaut) — tout ce qui ne relève clairement d'aucun domaine ci-dessus.\nRègles : une note peut appartenir à plusieurs domaines si elle mêle vraiment plusieurs sujets ; en cas de doute, le domaine par défaut ; ne mets jamais un domaine de travail sur une note purement personnelle. Les notes sont numérotées de 1 à ${rows.length}. Renvoie un JSON strict et COMPACT : {"1":["slug"],"2":["slug","slug"],...} avec exactement une entrée par numéro, rien d'autre.`;
+    const user = rows.map((r, i) => `#${i + 1} [${(r.created_at || "").slice(0, 10)}] (${r.source_type || "?"}) ${r.content.replace(/\s+/g, " ").slice(0, 320)}`).join("\n");
+    const out = await chat(CLASSIFIER_MODEL, sys, user, true, 2500);
+    const parsed = parseJson(out);
+    if (!parsed || typeof parsed !== "object") throw new Error("classifier answer unparsable; nothing tagged");
+    assignments = parsed;
+    const answered = Object.keys(assignments).length;
+    if (answered < rows.length * 0.8) throw new Error(`classifier answered ${answered}/${rows.length} (truncated?); nothing tagged`);
   }
-  const valid = new Set(domains.map((d) => d.slug));
-  for (const r of rows) {
-    let ds = Array.isArray(assignments[r.id]) ? assignments[r.id].filter((s: unknown) => typeof s === "string" && valid.has(s)) : [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    let ds = Array.isArray(assignments[String(i + 1)]) ? assignments[String(i + 1)].filter((s: unknown) => typeof s === "string" && valid.has(s)) : [];
     if (!ds.length) ds = [def.slug];
     ds = [...new Set(ds)];
     const { error: e } = await supabase.from("thoughts").update({ domains: ds }).eq("id", r.id);

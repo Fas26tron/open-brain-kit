@@ -192,6 +192,10 @@ The `content_scripts` entries for `claude.ai`, `chatgpt.com`, and `gemini.google
 
 Alternatively, host the packed `.crx` on a maintainer-owned update URL and let users sideload without going through the store at all.
 
+## Retention rule (Open Brain Kit addition)
+
+The sync does not send every conversation. A conversation is sent only if the person wrote at least 3 messages, or at least 600 characters in total (a long single note counts). Writing "Open Brain, retiens" / "Open Brain, remember" anywhere in the conversation forces the capture; "Open Brain, oublie" / "Open Brain, forget" prevents it. A conversation below the rule is reported as `too_short`, which does not advance the sync cursor, so it is re-checked at every sync and captured as soon as it grows. Implementation: `retentionVerdict()` in `lib/sync-chatgpt.js` and `lib/sync-claude.js`.
+
 ## Known Limitations
 
 - **ChatGPT and Gemini extractors are best-effort and unverified against live pages.** The ChatGPT and Gemini DOM extractors were written from public selector knowledge (`[data-message-author-role]`, `<user-query>` / `<model-response>` Web Components, aria-label fallbacks) and have not been exhaustively verified on a live logged-in session at merge time. They may break with any vendor UI refresh — OpenAI and Google both ship Gemini/ChatGPT UI changes on short cadence. When they break, manual capture on those platforms will return "No conversation turns found" until a maintainer updates the selectors. The Claude manual-capture extractor walks open shadow roots and has been exercised against live claude.ai; it is more resilient. Bulk sync (Claude + ChatGPT) uses internal JSON APIs and is far less fragile than any DOM path.
