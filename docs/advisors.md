@@ -26,13 +26,25 @@ Claude Code : `claude mcp add --transport http --scope user advisors "https://PR
 
 **Terminé quand** : « liste mes personae » répond dans Claude, et le premier run du job nocturne est vert.
 
+## Les domaines
+
+Les **domaines** partitionnent la mémoire en zones de vie ou de travail : « Artinary et Arts Lab », « Forward College », « Vie personnelle ». Chaque thought porte le ou les domaines auxquels il appartient, attribués chaque nuit par un classeur léger à partir de la description des domaines, et corrigeables par une phrase. Un domaine par défaut existe toujours (« Vie personnelle ») : tout ce qui n'est pas clairement rattaché ailleurs y va.
+
+- Une **persona** appartient à un domaine et ne voit que ses thoughts, règle stricte : un thought qui touche aussi un autre domaine lui est invisible.
+- Le **chief of staff** est global ; chaque projet est rattaché à un domaine ; « où en sont mes projets Forward College » ou « état des lieux complet ».
+- Le **sparring partner** est global et voit tout ; « sparring, dans le cadre de Forward College… » cadre la réponse sans l'aveugler.
+
+Les règles de définition, avec des exemples de bonnes et mauvaises descriptions, sont dans [rules.md](rules.md).
+
 ## S'en servir, depuis n'importe quel client
 
 Tout passe par des phrases ; le client appelle l'outil correspondant.
 
 | Vous dites | Outil |
 |---|---|
-| « Ajoute une persona : professeur salarié de l'école, dix ans d'ancienneté, protège la qualité pédagogique et sa charge, dit non à ce qui ajoute des heures sans moyens, dit oui à ce qui valorise son métier. Il ne connaît pas mes conversations privées. » | `set_persona` |
+| « Crée un domaine Forward College : l'école, son équipe, ses campus, son financement, ses étudiants ; pas ma vie personnelle » | `set_domain` |
+| « Montre-moi mes domaines » / « reclasse tout » / « cette conversation sur X va dans Forward College » | `list_domains`, `classify_domains`, `set_thought_domains` |
+| « Ajoute une persona dans Forward College : professeur salarié de l'école, dix ans d'ancienneté, protège la qualité pédagogique et sa charge, dit non à ce qui ajoute des heures sans moyens, dit oui à ce qui valorise son métier. Il ne connaît pas mes conversations privées. » | `set_persona` |
 | « Montre-moi mon panel » | `list_personas` |
 | « Demande au panel : faut-il ouvrir un second campus en 2027 ? » | `ask_panel` |
 | « Demande à l'investisseur ce qu'il pense du plan de financement » | `ask_persona` |
@@ -40,6 +52,7 @@ Tout passe par des phrases ; le client appelle l'outil correspondant.
 | « Déclare mes projets : Refonte du site (stratégique), Recrutement direction pédagogique (stratégique), Dossier subvention région (autonome, date limite 15 novembre) » | `set_projects` |
 | « Où en sont mes projets ? » | `etat_des_lieux` |
 | « Qu'est-ce que mon sparring partner sait de moi ? » | `get_profile` |
+| « Oublie la conversation sur l'hôtel en Corse » | `forget` (montre avant d'effacer) |
 | « Lance la distillation maintenant » | `run_nightly` |
 
 Le chief of staff propose de lui-même les projets qu'il voit revenir dans vos conversations et qui ne sont pas déclarés ; « liste mes projets » les montre, « déclare… » les adopte.
@@ -57,6 +70,7 @@ Le sparring partner voit tout. Son profil vit dans une table à part, jamais dan
 
 Chaque nuit, le job lit les thoughts arrivés depuis le dernier passage (toutes sources : extension Chrome, scanner Claude Code, app mobile) et :
 
+- **classe** les nouveaux thoughts dans les domaines ;
 - met à jour le **profil du sparring partner** : positions nouvelles, revirements, réactions à des conseils, règles pour vous challenger, traits observés. Rien n'est supprimé, une position dépassée descend en « revirements » avec sa date ;
 - met à jour l'**état des projets** du chief of staff et propose les projets non déclarés.
 

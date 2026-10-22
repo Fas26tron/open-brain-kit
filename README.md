@@ -32,7 +32,7 @@ Prérequis que vous fournissez : un compte [Supabase](https://supabase.com) (gra
 | `chief-of-staff/` | la version locale du chief of staff pour Claude Code : lit en plus vos dépôts git et vos sessions, versionne tout dans un repo |
 | `keepalive/` | GitHub Actions : anti-pause du free tier Supabase, et distillation nocturne des conseillers |
 | `bootstrap.sh` | installe la partie locale (scanner, scripts, config) sur un Mac |
-| `docs/` | [install.md](docs/install.md), [connect-clients.md](docs/connect-clients.md) |
+| `docs/` | [install.md](docs/install.md), [connect-clients.md](docs/connect-clients.md), [advisors.md](docs/advisors.md), [rules.md](docs/rules.md) (règles de définition des domaines, personae, chief of staff, sparring partner, rétention) |
 | `upstream/` | copies intactes des fichiers d'origine OB1, base de fusion pour les mises à jour |
 | `scripts/sync-upstream.sh` | récupère les changements d'OB1 (correctifs de sécurité…) et les fusionne dans le kit |
 

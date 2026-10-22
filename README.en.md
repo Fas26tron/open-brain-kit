@@ -33,7 +33,7 @@ What you provide: a [Supabase](https://supabase.com) account (free tier), an [Op
 | `chief-of-staff/` | the local, Claude Code version of the chief of staff: also reads your git repos and sessions, versions everything in a repo (French prompts) |
 | `keepalive/` | GitHub Actions: anti-pause for the Supabase free tier, and nightly distillation for the advisors |
 | `bootstrap.sh` | installs the local part (scanner, scripts, config) on a Mac |
-| `docs/` | French guides; English in [docs/en/](docs/en/) |
+| `docs/` | French guides; English in [docs/en/](docs/en/): [install](docs/en/install.md), [connect-clients](docs/en/connect-clients.md), [advisors](docs/en/advisors.md), [rules](docs/en/rules.md) (definition rules for domains, personas, chief of staff, sparring partner, retention) |
 | `upstream/` | pristine copies of the original OB1 files, merge base for updates |
 | `scripts/sync-upstream.sh` | fetches OB1 changes (security fixes…) and merges them into the kit |
 

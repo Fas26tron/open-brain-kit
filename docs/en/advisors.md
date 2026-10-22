@@ -26,13 +26,25 @@ https://PROJECT_REF.supabase.co/functions/v1/open-brain-advisors?key=BRAIN_KEY
 
 **Done when**: "list my personas" answers in Claude, and the nightly job's first run is green.
 
+## Domains
+
+**Domains** partition the memory into areas of life or work: "Artinary & Arts Lab", "Forward College", "Personal life". Every thought carries the domain(s) it belongs to, assigned every night by a light classifier from the domains' descriptions, and correctable with a sentence. A default domain always exists ("Personal life"): everything not clearly attached elsewhere goes there.
+
+- A **persona** belongs to one domain and only sees its thoughts, strict rule: a thought that also touches another domain is invisible to it.
+- The **chief of staff** is global; each project is attached to a domain; "where do my Forward College projects stand" or "full status report".
+- The **sparring partner** is global and sees everything; "sparring, within Forward College…" frames the answer without blinding it.
+
+Definition rules, with examples of good and bad descriptions, are in [rules.md](rules.md).
+
 ## Using them, from any client
 
 Everything goes through sentences; the client calls the matching tool.
 
 | You say | Tool |
 |---|---|
-| "Add a persona: tenured teacher at the school, ten years in, protects teaching quality and workload, says no to anything that adds hours without means, says yes to what values the profession. They do not know my private conversations." | `set_persona` |
+| "Create a domain Forward College: the school, its team, its campuses, its financing, its students; not my personal life" | `set_domain` |
+| "Show me my domains" / "reclassify everything" / "this conversation about X belongs to Forward College" | `list_domains`, `classify_domains`, `set_thought_domains` |
+| "Add a persona in Forward College: tenured teacher at the school, ten years in, protects teaching quality and workload, says no to anything that adds hours without means, says yes to what values the profession. They do not know my private conversations." | `set_persona` |
 | "Show me my panel" | `list_personas` |
 | "Ask the panel: should we open a second campus in 2027?" | `ask_panel` |
 | "Ask the investor what they think of the financing plan" | `ask_persona` |
@@ -40,6 +52,7 @@ Everything goes through sentences; the client calls the matching tool.
 | "Declare my projects: Website redesign (strategic), Head of teaching recruitment (strategic), Regional grant file (standalone, deadline 15 November)" | `set_projects` |
 | "Where do my projects stand?" | `etat_des_lieux` |
 | "What does my sparring partner know about me?" | `get_profile` |
+| "Forget the conversation about the hotel in Corsica" | `forget` (shows before deleting) |
 | "Run the distillation now" | `run_nightly` |
 
 The chief of staff proposes by itself the projects it sees recurring in your conversations and that are not declared; "list my projects" shows them, "declare…" adopts them.
@@ -57,6 +70,7 @@ The sparring partner sees everything. Its profile lives in a separate table, nev
 
 Every night, the job reads the thoughts that arrived since the last pass (all sources: Chrome extension, Claude Code scanner, mobile app) and:
 
+- **classifies** the new thoughts into domains;
 - updates the **sparring partner's profile**: new positions, reversals, reactions to advice, rules for challenging you, observed traits. Nothing is deleted; a superseded position moves to "reversals" with its date. The profile grows by appended lines under its existing headings, never by a rewrite;
 - updates the **project state** of the chief of staff and proposes undeclared projects.
 

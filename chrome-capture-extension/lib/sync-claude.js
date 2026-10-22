@@ -303,12 +303,42 @@
    * The captureHandler should be a function that accepts a capture message object
    * (same shape as processCaptureRequest expects).
    */
+
+  // ── Retention rule ──────────────────────────────────────────────────────────
+  // Open Brain keeps a conversation only if the person really invested in it:
+  //   at least RETENTION_MIN_USER_TURNS user messages, OR at least
+  //   RETENTION_MIN_USER_CHARS characters written by the person (a long single
+  //   note counts). Two explicit overrides, read in the conversation text, work
+  //   from any client: "open brain, retiens" forces capture; "open brain,
+  //   oublie" prevents it (and the `forget` tool removes an earlier capture).
+  // A conversation below the rule is reported as `too_short`, which does NOT
+  // advance the sync cursor: it is re-checked at every sync and captured as
+  // soon as it grows past the rule.
+  const RETENTION_MIN_USER_TURNS = 3;
+  const RETENTION_MIN_USER_CHARS = 600;
+  const RETENTION_KEEP_RE = /open\s*brain\s*[,:]?\s*(retiens|retenir|m[ée]morise|remember|keep)/i;
+  const RETENTION_FORGET_RE = /open\s*brain\s*[,:]?\s*(oublie|oublier|forget|ignore)/i;
+
+  function retentionVerdict(text) {
+    const norm = (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (RETENTION_FORGET_RE.test(norm)) return { keep: false, reason: 'forget_requested' };
+    if (RETENTION_KEEP_RE.test(norm)) return { keep: true, reason: 'keep_requested' };
+    const userLines = (text || '').split('\n').filter((l) => l.startsWith('USER: '));
+    const userChars = userLines.reduce((n, l) => n + l.length - 6, 0);
+    if (userLines.length >= RETENTION_MIN_USER_TURNS || userChars >= RETENTION_MIN_USER_CHARS) return { keep: true, reason: 'rule' };
+    return { keep: false, reason: 'too_short' };
+  }
+
   async function processOneConversation(orgId, conv, captureHandler) {
     const fullConv = await getConversation(orgId, conv.uuid);
     const formatted = formatForIngest(fullConv);
 
     if (!formatted.text || formatted.text.length < 50) {
       return { status: 'skipped', reason: 'too_short' };
+    }
+    const verdict = retentionVerdict(formatted.text);
+    if (!verdict.keep) {
+      return { status: 'skipped', reason: 'too_short', retention: verdict.reason };
     }
 
     const result = await captureHandler(formatted);
