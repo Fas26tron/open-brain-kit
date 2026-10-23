@@ -25,7 +25,7 @@ The `upstream/` folder holds **pristine copies** of the OB1 paths this kit is bu
 **`supabase/functions/open-brain-rest/index.ts`** (2 hunks)
 
 1. `getEmbedding`: the embedding model caps at ~8191 *tokens*, not characters, and OpenRouter can return HTTP 200 with an error body on overflow. The function now halves the input and retries until it gets a valid vector, so token-dense conversations (code, JSON) no longer fail with a generic 500.
-2. `POST /ingest`: honours `source_type` from the client (was hard-coded to `dashboard_ingest`), applies `source_date` to `created_at` so imported conversations keep their real date, and returns the real error message instead of a bare 500.
+2. `POST /ingest`: replaces the previous versions of a synced conversation (by `conversation_id`, or by its title/date header for older rows) instead of adding a copy each time it grows, carrying over hand-set domains and sensitivity; honours `source_type` from the client (was hard-coded to `dashboard_ingest`), applies `source_date` to `created_at` so imported conversations keep their real date, and returns the real error message instead of a bare 500.
 
 **`chrome-capture-extension/`** (3 files: `lib/sync-chatgpt.js`, `lib/sync-claude.js`, `background/service-worker.js`)
 

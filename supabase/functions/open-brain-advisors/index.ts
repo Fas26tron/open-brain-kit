@@ -44,7 +44,7 @@ const DEFAULT_MODEL = Deno.env.get("ADVISORS_MODEL") || "anthropic/claude-sonnet
 const CLASSIFIER_MODEL = Deno.env.get("ADVISORS_CLASSIFIER_MODEL") || "anthropic/claude-haiku-5.5";
 const DEFAULT_LANGUAGE = Deno.env.get("ADVISORS_LANGUAGE") || "fr";
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const CHUNK = 30;           // thoughts per nightly extraction step
 const CLASSIFY_BATCH = 40;  // thoughts per classification step
 
@@ -92,6 +92,7 @@ type Fact = {
   id: string;
   content: string;
   created_at: string;
+  cursor_at?: string;
   source_type: string | null;
   sensitivity_tier: string | null;
   type: string | null;
@@ -496,13 +497,21 @@ Règles : dates partout ; en cas de contradiction la plus récente fait foi ; ne
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function newThoughtsSince(cursor: string | null, max: number): Promise<Fact[]> {
-  let q = supabase.from("thoughts").select("id, content, created_at, source_type, sensitivity_tier, type, domains")
+  // Advance on captured_at (when the row entered the brain), not created_at
+  // (the conversation's real date, often in the past).
+  let q = supabase.from("thoughts").select("id, content, created_at, captured_at, source_type, sensitivity_tier, type, domains, metadata")
     .not("source_type", "in", '("chief_of_staff")')
-    .order("created_at", { ascending: true }).limit(max);
-  if (cursor) q = q.gt("created_at", cursor);
+    .order("captured_at", { ascending: true }).limit(max);
+  if (cursor) q = q.gt("captured_at", cursor);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return (data || []) as Fact[];
+  // A conversation that replaced an older version: only its new tail is new.
+  return ((data || []) as any[]).map((r) => {
+    const prev = Number(r.metadata?.previous_length || 0);
+    const head = r.content.split("\n").slice(0, 2).join("\n");
+    const content = prev > 0 && prev < r.content.length ? `${head}\n[… suite de la conversation, déjà connue jusqu'ici …]\n${r.content.slice(Math.max(0, prev - 200))}` : r.content;
+    return { ...r, content, cursor_at: r.captured_at };
+  }) as Fact[];
 }
 
 const PROFILE_SKELETON = `# Profil — sparring partner
@@ -537,7 +546,7 @@ async function nightlySparring(): Promise<{ read: number; remaining: boolean; su
   if (batch.length) {
     const user = batch.map((f) => `[${f.created_at.slice(0, 16)}] (${f.source_type || "?"}${f.domains?.length ? `, domaine ${f.domains.join("+")}` : ""})\n${f.content.replace(/\s+/g, " ").slice(0, 1500)}`).join("\n\n");
     const d = await chat(model, `Tu distilles les nouvelles conversations d'une personne pour nourrir le profil de son sparring partner. En ${lang}, renvoie UNIQUEMENT ce qui vaut la peine d'être retenu durablement, en JSON strict : {"positions":[{"date","statement","domain"}],"reversals":[{"date","from","to","why"}],"reactions":[{"date","accepted_or_rejected","what","rule"}],"traits":[{"date","observation"}],"decisions":[{"date","statement","domain"}],"open_questions":[{"date","question","domain"}]}. "domain" = le domaine indiqué sur la conversation. Les conversations mêlent ce que la personne a dit et ce qu'un assistant a proposé : n'attribue à la personne que ses propres mots. Listes vides si rien.`, user, true, 2500);
-    const newCursor = batch[batch.length - 1].created_at;
+    const newCursor = batch[batch.length - 1].cursor_at || batch[batch.length - 1].created_at;
     const v = await writeProfile("sparring", prof?.content || "", { ...data, pending: [...pending, d] }, newCursor, false);
     return { read: batch.length, remaining: true, summary: `v${v}, ${batch.length} thoughts extraits jusqu'au ${newCursor.slice(0, 16)} (${pending.length + 1} delta(s) en attente de fusion)` };
   }
@@ -599,7 +608,7 @@ async function nightlyChiefOfStaff(): Promise<{ read: number; remaining: boolean
     if (!n || projects.some((p) => p.name.toLowerCase() === n.toLowerCase()) || proposed.some((p) => p.name.toLowerCase() === n.toLowerCase())) continue;
     proposed.push({ name: n, reason: String(pr.reason || ""), seen_at: now, domain: typeof pr.domain === "string" && valid.has(pr.domain) ? pr.domain : undefined });
   }
-  const newCursor = batch[batch.length - 1].created_at;
+  const newCursor = batch[batch.length - 1].cursor_at || batch[batch.length - 1].created_at;
   const v = await writeProfile("chief_of_staff", prof?.content || "", { ...data, projects, proposed }, newCursor, true);
   return { read: batch.length, remaining: batch.length >= CHUNK * 2, summary: `état v${v}, ${batch.length} thoughts lus, ${(parsed.projects || []).length} projet(s) mis à jour, ${proposed.length - data.proposed.length} proposé(s)` };
 }
@@ -747,12 +756,27 @@ app.all("*", async (c) => {
     } catch (e) { return fail(e); }
   });
 
-  server.tool("classify_domains", "Run the domain classifier now on unclassified thoughts (or on all with reclassify=true), one bounded batch per call; says if more remains.", {
-    reclassify: z.boolean().optional(), limit: z.number().optional(),
-  }, async ({ reclassify, limit }) => {
+  server.tool("classify_domains", "Run the domain classifier now, one bounded batch per call; says if more remains. reclassify=true first resets the tags (of every thought, or only of those in from_domain) so they are classified again; then call again without reclassify until it is finished.", {
+    reclassify: z.boolean().optional(), from_domain: z.string().optional().describe("With reclassify: only reset thoughts currently in this domain"), limit: z.number().optional(),
+  }, async ({ reclassify, from_domain, limit }) => {
     try {
-      const c = await classifyBatch(Math.max(5, Math.min(150, limit || CLASSIFY_BATCH)), reclassify || false);
-      return text(c.done ? `${c.done} thoughts classés : ${Object.entries(c.counts).map(([s, n]) => `${s} ${n}`).join(", ")}.${c.remaining ? " Il en reste : relance." : " Terminé."}` : "Rien à classer.");
+      let reset = 0;
+      if (reclassify) {
+        // in pages: one UPDATE over thousands of rows exceeds the statement timeout
+        for (let page = 0; page < 200; page++) {
+          let sel = supabase.from("thoughts").select("id").neq("domains", "{}").limit(300);
+          if (from_domain) sel = sel.contains("domains", [from_domain]);
+          const { data: ids, error: e1 } = await sel;
+          if (e1) throw new Error(e1.message);
+          if (!ids?.length) break;
+          const { error: e2 } = await supabase.from("thoughts").update({ domains: [] }).in("id", ids.map((r: any) => r.id));
+          if (e2) throw new Error(e2.message);
+          reset += ids.length;
+        }
+      }
+      const c = await classifyBatch(Math.max(5, Math.min(150, limit || CLASSIFY_BATCH)), false);
+      const head = reclassify ? `${reset} thoughts remis à reclasser. ` : "";
+      return text(head + (c.done ? `${c.done} thoughts classés : ${Object.entries(c.counts).map(([s, n]) => `${s} ${n}`).join(", ")}.${c.remaining ? " Il en reste : relance classify_domains (sans reclassify)." : " Terminé."}` : "Rien à classer."));
     } catch (e) { return fail(e); }
   });
 

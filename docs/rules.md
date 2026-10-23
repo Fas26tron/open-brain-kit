@@ -68,7 +68,8 @@ Open Brain ne retient pas toutes vos interactions. La règle, appliquée par l'e
 2. **« Open Brain, retiens »** écrit dans la conversation, dans n'importe quel client, force la capture. **« Open Brain, oublie »** l'empêche. Une conversation déjà capturée se supprime par « oublie la conversation sur X » (l'outil `forget` montre ce qu'il va effacer avant d'effacer).
 3. **Une conversation trop courte est réexaminée à chaque synchronisation** et capturée dès qu'elle dépasse la règle.
 4. **Les notes dictées à l'app Claude ne sont pas concernées** : elles passent par `capture_thought`, une phrase suffit.
-5. **La rétention enlève le jetable ; le domaine range le reste.** Une conversation de trois tours sur un hôtel sera retenue, et ira en « Vie personnelle », invisible aux personae de travail.
+5. **Une conversation qui s'allonge remplace sa version précédente.** Chaque synchronisation renvoie la conversation entière ; le serveur garde la nouvelle version, reprend les domaines et la sensibilité réglés à la main sur l'ancienne, puis supprime l'ancienne. Le job nocturne ne relit que la partie nouvelle.
+6. **La rétention enlève le jetable ; le domaine range le reste.** Une conversation de trois tours sur un hôtel sera retenue, et ira en « Vie personnelle », invisible aux personae de travail.
 
 ## 6. La sensibilité
 
@@ -77,6 +78,8 @@ Indépendante du domaine, la **sensibilité** d'un thought vaut `standard`, `per
 Utilisez-la pour ce qui doit rester hors de portée de toute persona, quel que soit le domaine : santé, argent personnel, conflits. « Marque cette conversation comme restreinte » suffit quand l'outil correspondant est branché ; sinon, le niveau se règle dans la table `thoughts`.
 
 ## 7. Ce que le job nocturne fait, dans l'ordre
+
+Le job avance sur la date d'**entrée dans le brain** (`captured_at`), pas sur la date réelle de la conversation : une conversation de 2024 importée aujourd'hui, ou reprise aujourd'hui, est bien traitée cette nuit.
 
 1. **Classe** les nouveaux thoughts dans les domaines.
 2. **Distille** les nouveaux thoughts dans le profil du sparring partner.

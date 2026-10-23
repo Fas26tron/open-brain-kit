@@ -68,7 +68,8 @@ Open Brain does not keep every interaction. The rule, applied by the Chrome exte
 2. **"Open Brain, remember"** (or "Open Brain, retiens") written in the conversation, in any client, forces capture. **"Open Brain, forget"** prevents it. An already captured conversation is removed with "forget the conversation about X" (the `forget` tool shows what it will delete before deleting).
 3. **A conversation below the rule is re-examined at every sync** and captured as soon as it exceeds the rule.
 4. **Notes dictated to the Claude app are not concerned**: they go through `capture_thought`, one sentence is enough.
-5. **Retention removes the disposable; the domain sorts the rest.** A three-turn conversation about a hotel will be kept, and will go to "Personal life", invisible to work personas.
+5. **A conversation that grows replaces its previous version.** Every sync sends the whole conversation again; the server keeps the new version, carries over the domains and sensitivity set by hand on the old one, then deletes the old one. The nightly job only re-reads the new part.
+6. **Retention removes the disposable; the domain sorts the rest.** A three-turn conversation about a hotel will be kept, and will go to "Personal life", invisible to work personas.
 
 ## 6. Sensitivity
 
@@ -77,6 +78,8 @@ Independent of the domain, a thought's **sensitivity** is `standard`, `personal`
 Use it for what must stay out of reach of every persona, whatever the domain: health, personal money, conflicts. "Mark this conversation as restricted" is enough when the matching tool is connected; otherwise the tier is set in the `thoughts` table.
 
 ## 7. What the nightly job does, in order
+
+The job advances on the date a row **entered the brain** (`captured_at`), not on the conversation's real date: a 2024 conversation imported today, or resumed today, is processed tonight.
 
 1. **Classifies** the new thoughts into domains.
 2. **Distills** the new thoughts into the sparring partner's profile.

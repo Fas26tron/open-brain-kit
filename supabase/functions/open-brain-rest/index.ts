@@ -654,6 +654,68 @@ app.post("/thought/:id/reflection", async (c) => {
 app.get("/ingestion-jobs", (c) => c.json({ jobs: [], count: 0 }, 200, corsHeaders));
 app.get("/ingestion-jobs/:id", (c) => c.json({ job: null, items: [] }, 200, corsHeaders));
 app.post("/ingestion-jobs/:id/execute", (c) => c.json({ job_id: c.req.param("id"), status: "not_configured" }, 200, corsHeaders));
+/**
+ * A synced conversation is sent again, in full, every time it grows. Without
+ * this step each sync added a new thought next to the previous one (observed:
+ * 1126 rows for 605 conversations). After the new version is stored:
+ *   - stamp it with the conversation identity (conversation_id, title,
+ *     platform) and the conversation's real date (source_date → created_at);
+ *   - find the older versions of the same conversation (same source_type and
+ *     same conversation_id, or — for rows captured before identities were
+ *     stored — the same "Conversation title / created at" header);
+ *   - carry over what a person may have set by hand on them (domains,
+ *     a stricter sensitivity tier), and remember how much of the
+ *     conversation was already known (`previous_length`) so the nightly
+ *     distillation only reads the new tail;
+ *   - delete them.
+ */
+async function replacePreviousVersions(newId: string, text: string, sourceType: string, body: Record<string, any>): Promise<number> {
+  const sm = (body.source_metadata && typeof body.source_metadata === "object") ? body.source_metadata : {};
+  const conversationId = typeof sm.conversation_id === "string" && sm.conversation_id ? sm.conversation_id : "";
+  const header = text.split("\n").slice(0, 2).join("\n");
+  const hasHeader = /^Conversation title: .+\nConversation created at: \S+/.test(header);
+
+  const { data: fresh } = await supabase.from("thoughts").select("metadata").eq("id", newId).maybeSingle();
+  const metadata: Record<string, unknown> = { ...(fresh?.metadata || {}) };
+  if (conversationId) metadata.conversation_id = conversationId;
+  if (typeof sm.conversation_title === "string") metadata.conversation_title = sm.conversation_title;
+  if (typeof body.source_label === "string") metadata.source_label = body.source_label;
+
+  type Old = { id: string; content: string; domains: string[] | null; sensitivity_tier: string | null; created_at: string };
+  const old: Old[] = [];
+  if (conversationId) {
+    const { data } = await supabase.from("thoughts").select("id, content, domains, sensitivity_tier, created_at")
+      .eq("source_type", sourceType).eq("metadata->>conversation_id", conversationId).neq("id", newId);
+    old.push(...((data || []) as Old[]));
+  }
+  if (hasHeader) {
+    const pattern = header.replace(/[\\%_]/g, (ch) => `\\${ch}`) + "%";
+    const { data } = await supabase.from("thoughts").select("id, content, domains, sensitivity_tier, created_at")
+      .eq("source_type", sourceType).like("content", pattern).neq("id", newId);
+    for (const r of (data || []) as Old[]) if (!old.some((o) => o.id === r.id)) old.push(r);
+  }
+
+  const update: Record<string, unknown> = {};
+  const sd = typeof body.source_date === "string" ? new Date(body.source_date) : null;
+  if (sd && !isNaN(sd.getTime())) update.created_at = sd.toISOString();
+  if (old.length) {
+    const rank: Record<string, number> = { standard: 0, personal: 1, restricted: 2 };
+    const strictest = old.reduce((acc, o) => (rank[o.sensitivity_tier || "standard"] ?? 0) > (rank[acc] ?? 0) ? (o.sensitivity_tier as string) : acc, "standard");
+    if (strictest !== "standard") update.sensitivity_tier = strictest;
+    const latest = [...old].sort((a, b) => b.content.length - a.content.length)[0];
+    if (latest.domains?.length) update.domains = latest.domains;
+    const known = Math.max(...old.map((o) => (text.startsWith(o.content.slice(0, Math.max(0, o.content.length - 50))) ? o.content.length : 0)));
+    if (known > 0) metadata.previous_length = known;
+  }
+  update.metadata = metadata;
+  const { error } = await supabase.from("thoughts").update(update).eq("id", newId);
+  if (error) throw new Error(error.message);
+  if (!old.length) return 0;
+  const { error: delErr } = await supabase.from("thoughts").delete().in("id", old.map((o) => o.id));
+  if (delErr) throw new Error(delErr.message);
+  return old.length;
+}
+
 app.post("/ingest", async (c) => {
   try {
     const body = await c.req.json().catch(() => ({}));
@@ -661,13 +723,9 @@ app.post("/ingest", async (c) => {
     if (!text) return c.json({ error: "text is required" }, 400, corsHeaders);
     const sourceType = (typeof body.source_type === "string" && body.source_type.trim()) || "dashboard_ingest";
     const result = await createThought({ content: text, source_type: sourceType });
-    // Preserve the original conversation date when the client supplies it
-    // (e.g. ChatGPT sync sends the conversation's create_time as source_date).
-    const sd = typeof body.source_date === "string" ? new Date(body.source_date) : null;
-    if (result?.thought_id && sd && !isNaN(sd.getTime())) {
-      await supabase.from("thoughts").update({ created_at: sd.toISOString() }).eq("id", result.thought_id);
-    }
-    return c.json({ job_id: 0, status: "complete", extracted_count: 1, thought_id: result.thought_id }, 200, corsHeaders);
+    const newId = result?.thought_id ? String(result.thought_id) : "";
+    const replaced = newId ? await replacePreviousVersions(newId, text, sourceType, body) : 0;
+    return c.json({ job_id: 0, status: "complete", extracted_count: 1, thought_id: newId, replaced_versions: replaced }, 200, corsHeaders);
   } catch (error) {
     // Surface the real cause instead of a generic 500 so the client can see it.
     return c.json({ error: error instanceof Error ? error.message : "ingest failed" }, 500, corsHeaders);
